@@ -3,10 +3,109 @@
 
 <head>
     <meta charset="utf-8">
+    <link rel="stylesheet" href="style.css" />
     <title>スイス式トーナメント</title>
 </head>
 
 <body>
+
+    <button id="addRowButton">追加</button>
+    <button id="deleteRowButton">削除</button>
+
+    <table id="memberTable">
+        <tr>
+            <td contenteditable="true" class="name">名前を入力</td>
+        </tr>
+        <tr>
+            <td contenteditable="true" class="name">名前を入力</td>
+        </tr>
+        <tr>
+            <td contenteditable="true" class="name">名前を入力</td>
+        </tr>
+    </table>
+
+    <script>
+        let currentTableRow = null;
+        const setCurrentTableRow = (td) => {
+            const newCurrentTd = td;
+            if (!newCurrentTd.classList.contains("name")) {
+                return;
+            }
+            const newCurrentTableRow = newCurrentTd.parentElement;
+            if (currentTableRow != newCurrentTableRow) {
+                if (currentTableRow) {
+                    for (const child of currentTableRow.children) {
+                        child.classList.toggle("select");
+                    }
+                }
+                newCurrentTd.classList.toggle("select");
+                currentTableRow = newCurrentTableRow;
+            }
+        };
+
+        document.onselectionchange = () => {
+            const anchorNode = document.getSelection().anchorNode;
+            if (anchorNode) {
+                const selectedTd = anchorNode.parentElement;
+                setCurrentTableRow(selectedTd);
+            }
+        };
+
+        document.querySelectorAll("td").forEach((td) => {
+            td.addEventListener("click", () => {
+                const currentTd = document.activeElement;
+                setCurrentTableRow(currentTd);
+            });
+
+            td.addEventListener("focus", () => {
+                const currentTd = document.activeElement;
+                setCurrentTableRow(currentTd);
+            });
+        })
+
+        document.querySelector("#addRowButton").addEventListener("click", () => {
+            const text = "名前を入力";
+            const td = document.createElement("td");
+            td.textContent = text;
+            td.contentEditable = "true";
+            td.classList.add("name");
+
+            const tr = document.createElement("tr");
+            tr.appendChild(td);
+
+            const memberTable = document.querySelector("#memberTable");
+
+            if (currentTableRow) {
+                currentTableRow.insertAdjacentElement("afterend", tr)
+            } else {
+                memberTable.insertAdjacentElement("beforeend", tr);
+            }
+
+            td.focus();
+            setCurrentTableRow(td);
+
+            {
+                const range = document.createRange();
+                range.selectNodeContents(td);
+
+                const selection = document.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+        });
+
+        document.querySelector("#deleteRowButton").addEventListener("click", () => {
+            const memberTable = document.querySelector("#memberTable");
+            if (currentTableRow) {
+                const parentNode = currentTableRow.parentNode;
+                const index = Array.prototype.indexOf.call(parentNode.children, currentTableRow);
+                memberTable.deleteRow(index);
+                currentTableRow = null;
+            } else {
+                memberTable.deleteRow(-1);
+            }
+        });
+    </script>
 </body>
 
 </html>
