@@ -57,7 +57,7 @@ const TabPanel = (props: TabPanelProps) => {
 
 const Title = ({ children: children }: { children?: React.ReactNode }) => {
   return (
-    <Typography variant="h5" sx={{ m: 1 }}>
+    <Typography variant="h5" sx={{ my: 1 }}>
       {children}
     </Typography>
   )
@@ -266,7 +266,7 @@ export default function Home() {
 
             <TabPanel value={tab} index={0}>
               <Title>参加者</Title>
-              <List>
+              <List disablePadding>
                 {players.map((player, index) => {
                   return (
                     <ListItem key={player.id}>
@@ -311,13 +311,13 @@ export default function Home() {
             </TabPanel>
             <TabPanel value={tab} index={1}>
               <Title>対戦表</Title>
-              <List subheader={<ListSubheader>勝者の名前をクリックします。もう一度クリックするとリセットされます。</ListSubheader>}>
+              <List disablePadding subheader={<ListSubheader>勝者の名前をクリックします。もう一度クリックするとリセットされます。</ListSubheader>}>
                 {matches.map((match, matchIndex) => {
                   return (
-                    <ListItem key={match.id}>
+                    <ListItem key={match.id} sx={{ py: 1 }} disablePadding>
                       <Stack sx={{ width: "100%" }}>
                         <Typography>{`${matchIndex + 1}試合目`}</Typography>
-                        <List>
+                        <List disablePadding>
                           {match.pairList.map((pair) => {
                             const PlayerButton = ({ playerId: playerId }: { playerId: PlayerId }) => {
                               return (
@@ -340,7 +340,7 @@ export default function Home() {
                             };
 
                             return (
-                              <ListItem key={pair.id}>
+                              <ListItem key={pair.id} disablePadding>
                                 <Box sx={{ width: "100%" }}>
                                   <Grid2 container spacing={2} alignItems="baseline">
                                     <Grid2 size="grow">
