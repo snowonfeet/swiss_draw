@@ -4,11 +4,10 @@ import { Box, Button, Container, Grid2, List, ListItem, ListSubheader, Stack, Ta
 import IconButton from '@mui/material/IconButton';
 import { useEffect, useRef, useState } from "react";
 import localforage from "localforage";
-import { roundRobin } from "@/lib/roundRobin";
-import { isEven, shuffle, makeId, isEmpty } from "@/lib/util";
+import { isEven, makeId } from "@/lib/util";
 import { getSide, getWinnerId } from "@/lib/pair";
 import { indigo } from "@mui/material/colors";
-import { GHOST_PLAYER, getHelperTextForNameValidation, getPlayerName, isPlayers, isValidPlayerName } from "@/lib/player";
+import { getHelperTextForNameValidation, getPlayerName, isPlayer, isPlayers, isValidPlayerName } from "@/lib/player";
 import { getPlayerWinCountUntilMatchId, isMatches, swissDraw } from "@/lib/match";
 import { RankTable } from "@/components/rankTable";
 import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
@@ -65,8 +64,8 @@ const Title = ({ children: children }: { children?: React.ReactNode }) => {
 
 export default function Home() {
   const [players, setPlayers] = useState<Player[]>([]);
+  const [ghostPlayer, setGhostPlayer] = useState<Player>({ id: makeId() as PlayerId, name: "不在" });
   const [matches, setMatches] = useState<Match[]>([]);
-  const [restMatches, setRestMatches] = useState<Match[]>([]);
 
   const [tab, setTab] = useState(0);
 
@@ -81,7 +80,6 @@ export default function Home() {
 
   const clearMatches = () => {
     setMatches([]);
-    setRestMatches([]);
   }
 
   const handleAddPlayer = () => {
@@ -117,38 +115,7 @@ export default function Home() {
     clearMatches();
   };
 
-
-  const makeAllMatches = () => {
-    // 参加者が奇数の場合は、存在しない参加者(Ghost Player)を追加して偶数にする。
-    // Ghost Player を配列の先頭に追加すると、Round Robin で先頭要素が固定される。
-    const shuffledPlayers = shuffle(players);
-    const evenPlayers = (isEven(shuffledPlayers)) ? shuffledPlayers : [GHOST_PLAYER, ...shuffledPlayers];
-
-    return roundRobin(evenPlayers.length).map((indexMatch) => {
-      const pairList = indexMatch.map((indexPair) => {
-        const pair: Pair = {
-          left: evenPlayers[indexPair[0]].id,
-          right: evenPlayers[indexPair[1]].id,
-          winner: "none",
-          id: makeId() as PairId
-        };
-        return pair;
-      });
-      const match: Match = { pairList: pairList, id: makeId() as MatchId };
-      return match;
-    })
-  }
-
   const handleMakeMatch = () => {
-    const isNew = isEmpty(matches) && isEmpty(restMatches);
-    const newRestMatches = isNew ? makeAllMatches() : [...restMatches];
-
-    if (isEmpty(newRestMatches)) {
-      // 全ての試合を行った.
-      alert("全ての試合が完了しました。");
-      return;
-    }
-
     for (const match of matches) {
       for (const pair of match.pairList) {
         if (pair.winner === "none") {
@@ -159,24 +126,21 @@ export default function Home() {
       }
     }
 
-    let matchIndex = 0;
-    if (isNew) {
-      matchIndex = 0;
-    } else {
-      // ペアの勝ち数の差の合計が最小となるMatchを探す.
-      matchIndex = swissDraw(newRestMatches);
-    }
+    let newMatch = swissDraw(players, matches, ghostPlayer);
 
-    let newMatch = newRestMatches.splice(matchIndex, 1)[0];
+    if (!newMatch) {
+      alert("全ての対局が完了しました。");
+      return;
+    }
 
     // 対戦相手がいない場合は不戦勝とする.
     if (!isEven(players)) {
       newMatch = {
         ...newMatch,
         pairList: newMatch.pairList.map((pair) => {
-          if (pair.left === GHOST_PLAYER.id) {
+          if (pair.left === ghostPlayer.id) {
             pair.winner = "right";
-          } else if (pair.right === GHOST_PLAYER.id) {
+          } else if (pair.right === ghostPlayer.id) {
             pair.winner = "left";
           }
           return pair;
@@ -184,8 +148,7 @@ export default function Home() {
       };
     }
 
-    setMatches((matches) => [...matches, newMatch]);
-    setRestMatches(newRestMatches);
+    setMatches((matches) => [...matches, newMatch!]);
     setRequestScrollEnd((prev) => !prev)
   };
 
@@ -222,12 +185,14 @@ export default function Home() {
   };
 
   // ローカルストレージへの保存.
+  const STORAGE_KEY_GHOST_PLAYER = "swiss-draw-ghost-player";
   const STORAGE_KEY_PLAYERS = "swiss-draw-players";
   const STORAGE_KEY_MATCHES = "swiss-draw-matches";
-  const STORAGE_KEY_REST_MATCHES = "swiss-draw-rest-matches";
 
   useEffect(() => {
+    localforage.getItem(STORAGE_KEY_GHOST_PLAYER).then((savedGhostPlayer) => { isPlayer(savedGhostPlayer) ? setGhostPlayer(savedGhostPlayer) : localforage.setItem(STORAGE_KEY_GHOST_PLAYER, ghostPlayer) });
     localforage.getItem(STORAGE_KEY_PLAYERS).then((players) => isPlayers(players) && setPlayers(players));
+    localforage.getItem(STORAGE_KEY_MATCHES).then((matches) => isMatches(matches) && setMatches(matches));
   }, []);
 
   useEffect(() => {
@@ -235,20 +200,8 @@ export default function Home() {
   }, [players]);
 
   useEffect(() => {
-    localforage.getItem(STORAGE_KEY_MATCHES).then((matches) => isMatches(matches) && setMatches(matches));
-  }, []);
-
-  useEffect(() => {
     localforage.setItem(STORAGE_KEY_MATCHES, matches);
   }, [matches]);
-
-  useEffect(() => {
-    localforage.getItem(STORAGE_KEY_REST_MATCHES).then((restMatches) => isMatches(restMatches) && setRestMatches(restMatches));
-  }, []);
-
-  useEffect(() => {
-    localforage.setItem(STORAGE_KEY_REST_MATCHES, restMatches);
-  }, [restMatches]);
 
   return (
     <ThemeProvider theme={theme}>
@@ -328,7 +281,7 @@ export default function Home() {
                                         (pair.winner === "none") ? <></> : (getWinnerId(pair) === playerId) ? <CircleOutlinedIcon /> : <CloseOutlinedIcon />
                                       }
                                       <Typography variant="h5" component="div">
-                                        {`${getPlayerName(playerId, [...players, GHOST_PLAYER])}`}
+                                        {`${getPlayerName(playerId, [...players, ghostPlayer])}`}
                                       </Typography>
                                     </Stack>
                                     <Typography variant="subtitle1" component="div">

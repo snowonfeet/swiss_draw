@@ -1,9 +1,10 @@
-import { getOpponentId, getWinnerId } from "./pair";
-import { GHOST_PLAYER } from "./player";
+import { existPair, getOpponentId, getWinnerId } from "./pair";
+import { isEven, makeId } from "./util";
 
 const isPair = (arg: unknown): arg is Pair => {
   const record = arg as Record<keyof Pair, unknown>;
   return (
+    record &&
     typeof record.id === "string" &&
     typeof record.left === "string" &&
     typeof record.right === "string" &&
@@ -24,13 +25,7 @@ export const isMatches = (arg: unknown): arg is Match[] => {
   return Array.isArray(arg) && arg.every(isMatch);
 };
 
-export const getPlayerWinCountWithGhost = (
-  playerId: PlayerId,
-  matches: Match[]
-) => {
-  if (playerId === GHOST_PLAYER.id) {
-    return 0;
-  }
+export const getPlayerWinCount = (playerId: PlayerId, matches: Match[]) => {
   let count = 0;
   for (const match of matches) {
     for (const pair of match.pairList) {
@@ -72,7 +67,7 @@ export const getOpponentWinCount = (id: PlayerId, matches: Match[]) => {
     for (const pair of match.pairList) {
       const opponentId = getOpponentId(pair, id);
       if (opponentId) {
-        count += getPlayerWinCountWithGhost(opponentId, matches);
+        count += getPlayerWinCount(opponentId, matches);
         break;
       }
     }
@@ -91,7 +86,7 @@ export const getDefeatedOpponentWinCount = (
       if (getWinnerId(pair) === playerId) {
         const opponentId = getOpponentId(pair, playerId);
         if (opponentId) {
-          count += getPlayerWinCountWithGhost(opponentId, matches);
+          count += getPlayerWinCount(opponentId, matches);
           break;
         } else {
           console.assert(false);
@@ -102,31 +97,105 @@ export const getDefeatedOpponentWinCount = (
   return count;
 };
 
-export const swissDraw = (matches: Match[]) => {
-  const getPlayerWinCountForSwissDraw = (id: PlayerId) => {
-    if (id === GHOST_PLAYER.id) {
-      // スイス式を算出するときだけ、Ghost Playerの勝数を0~試合数のランダムな値に変えたほうが良いかもしれない.
-      return 0;
-    } else {
-      return getPlayerWinCountWithGhost(id, matches);
+const existPairInMatch = (
+  left: PlayerId,
+  right: PlayerId,
+  match: Match
+): boolean => {
+  for (const pair of match.pairList) {
+    if (existPair(left, right, pair)) {
+      return true;
     }
-  };
+  }
+  return false;
+};
 
-  const calcWinCountDiffSum = (match: Match) => {
-    let sum = 0;
-    for (const pair of match.pairList) {
-      const left = getPlayerWinCountForSwissDraw(pair.left);
-      const right = getPlayerWinCountForSwissDraw(pair.right);
-      const diff = Math.abs(left - right);
-      sum += diff;
+const existPairInMatches = (
+  left: PlayerId,
+  right: PlayerId,
+  matches: Match[]
+) => {
+  for (const match of matches) {
+    if (existPairInMatch(left, right, match)) {
+      return true;
     }
-    return sum;
-  };
+  }
+  return false;
+};
 
-  const diffSumArray = matches.map(calcWinCountDiffSum);
+// 勝数の大きい順でソートした配列を返す.
+const makeSortedPlayers = (players: Player[], matches: Match[]) => {
+  return players.toSorted((a, b) => {
+    const aWinCount = getPlayerWinCount(a.id, matches);
+    const bWinCount = getPlayerWinCount(b.id, matches);
+    const diff = bWinCount - aWinCount;
+    if (diff !== 0) {
+      return diff;
+    }
+    // 同じ勝数の場合はランダム。
+    return Math.random() - 0.5;
+  });
+};
 
-  const minIndex = diffSumArray.indexOf(
-    diffSumArray.reduce((a, b) => Math.min(a, b))
+const toEven = (players: Player[], ghostPlayer: Player): Player[] => {
+  return isEven(players) ? players : [...players, ghostPlayer];
+};
+
+export const swissDraw = (
+  players: Player[],
+  matches: Match[],
+  ghostPlayer: Player
+): Match | undefined => {
+  const sortedPlayers = toEven(
+    makeSortedPlayers(players, matches),
+    ghostPlayer
   );
-  return minIndex;
+
+  const pairList = makePairRecursive(sortedPlayers, matches);
+  if (pairList) {
+    return {
+      id: makeId() as MatchId,
+      pairList: pairList,
+    };
+  } else {
+    return undefined;
+  }
+};
+
+const makePairRecursive = (
+  players: Player[],
+  matches: Match[]
+): Pair[] | undefined => {
+  if (players.length <= 1) {
+    throw new Error(`required players.length >= 2 but ${players.length}`);
+  }
+
+  if (players.length % 2 !== 0) {
+    throw new Error(`required players.length % 2 === 0 but ${players.length}`);
+  }
+
+  const player = players[0];
+  const challengers = players.toSpliced(0, 1);
+  for (let i = 0; i < challengers.length; ++i) {
+    const challenger = challengers[i];
+    if (!existPairInMatches(player.id, challenger.id, matches)) {
+      const newPair: Pair = {
+        id: makeId() as PairId,
+        left: player.id,
+        right: challenger.id,
+        winner: "none",
+      };
+
+      const rests = challengers.toSpliced(i, 1);
+      if (rests.length >= 2) {
+        const restPair = makePairRecursive(rests, matches);
+        if (restPair) {
+          return [newPair, ...restPair];
+        }
+      } else {
+        return [newPair];
+      }
+    }
+  }
+  return undefined;
 };

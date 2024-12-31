@@ -28,3 +28,17 @@ export const getOpponentId = (pair: Pair, id: PlayerId) => {
     return undefined;
   }
 };
+
+export const existPair = (
+  left: PlayerId,
+  right: PlayerId,
+  pair: Pair
+): boolean => {
+  if (pair.left === left && pair.right === right) {
+    return true;
+  }
+  if (pair.right === left && pair.right === right) {
+    return true;
+  }
+  return false;
+};

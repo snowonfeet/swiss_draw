@@ -1,4 +1,4 @@
-import { getDefeatedOpponentWinCount, getOpponentWinCount, getPlayerWinCountWithGhost } from "@/lib/match";
+import { getDefeatedOpponentWinCount, getOpponentWinCount, getPlayerWinCount } from "@/lib/match";
 import { Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from "@mui/material";
 
 type CellInfo = {
@@ -11,7 +11,7 @@ type CellInfo = {
 
 export const RankTable = ({ players: players, matches: matches }: { players: Player[], matches: Match[] }) => {
     const cellInfos: CellInfo[] = players.map((player) => {
-        return { name: player.name, id: player.id, winCount: getPlayerWinCountWithGhost(player.id, matches), opponentWinCount: getOpponentWinCount(player.id, matches), defeatedOpponentWinCount: getDefeatedOpponentWinCount(player.id, matches) }
+        return { name: player.name, id: player.id, winCount: getPlayerWinCount(player.id, matches), opponentWinCount: getOpponentWinCount(player.id, matches), defeatedOpponentWinCount: getDefeatedOpponentWinCount(player.id, matches) }
     })
 
     const rankedCellInfos = cellInfos.toSorted((a, b) => {
