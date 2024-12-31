@@ -209,26 +209,3 @@ export const getPairInMatch = (playerId: PlayerId, match: Match) => {
   }
   return undefined;
 };
-
-export const getOpponentIdInMatch = (playerId: PlayerId, match: Match) => {
-  for (const pair of match.pairList) {
-    const opponent = getOpponentId(pair, playerId);
-    if (opponent) {
-      return opponent;
-    }
-  }
-  return undefined;
-};
-
-export const getOpponentNameInMatch = (
-  playerId: PlayerId,
-  match: Match,
-  players: Player[]
-) => {
-  const opponentId = getOpponentIdInMatch(playerId, match);
-  if (opponentId) {
-    return getPlayerName(opponentId, players);
-  } else {
-    return "";
-  }
-};

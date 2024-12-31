@@ -8,7 +8,7 @@ import { isEven, makeId } from "@/lib/util";
 import { getOpponentId, getResult, getSide, getWinnerId } from "@/lib/pair";
 import { indigo } from "@mui/material/colors";
 import { getHelperTextForNameValidation, getPlayerName, isPlayer, isPlayers, isValidPlayerName } from "@/lib/player";
-import { getDefeatedOpponentWinCount, getOpponentNameInMatch, getOpponentWinCount, getPairInMatch, getPlayerWinCount, getPlayerWinCountUntilMatchId, isMatches, swissDraw } from "@/lib/match";
+import { getDefeatedOpponentWinCount, getOpponentWinCount, getPairInMatch, getPlayerWinCount, getPlayerWinCountUntilMatchId, isMatches, swissDraw } from "@/lib/match";
 import { RankTable } from "@/components/rankTable";
 import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
