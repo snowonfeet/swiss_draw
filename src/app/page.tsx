@@ -1,14 +1,14 @@
 "use client";
-import { Box, Button, Container, Grid2, List, ListItem, ListSubheader, Stack, Tab, Tabs, TextField, ThemeProvider, ToggleButton, Typography, createTheme } from "@mui/material";
+import { Box, Button, Container, Grid2, List, ListItem, ListSubheader, Stack, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, TextField, ThemeProvider, ToggleButton, Typography, createTheme } from "@mui/material";
 
 import IconButton from '@mui/material/IconButton';
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import localforage from "localforage";
 import { isEven, makeId } from "@/lib/util";
-import { getSide, getWinnerId } from "@/lib/pair";
+import { getOpponentId, getResult, getSide, getWinnerId } from "@/lib/pair";
 import { indigo } from "@mui/material/colors";
 import { getHelperTextForNameValidation, getPlayerName, isPlayer, isPlayers, isValidPlayerName } from "@/lib/player";
-import { getPlayerWinCountUntilMatchId, isMatches, swissDraw } from "@/lib/match";
+import { getDefeatedOpponentWinCount, getOpponentNameInMatch, getOpponentWinCount, getPairInMatch, getPlayerWinCount, getPlayerWinCountUntilMatchId, isMatches, swissDraw } from "@/lib/match";
 import { RankTable } from "@/components/rankTable";
 import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
@@ -192,10 +192,14 @@ export default function Home() {
   const STORAGE_KEY_MATCHES = "swiss-draw-matches";
 
   useEffect(() => {
-    localforage.getItem(STORAGE_KEY_GHOST_PLAYER).then((savedGhostPlayer) => { isPlayer(savedGhostPlayer) ? setGhostPlayer(savedGhostPlayer) : localforage.setItem(STORAGE_KEY_GHOST_PLAYER, ghostPlayer) });
+    localforage.getItem(STORAGE_KEY_GHOST_PLAYER).then((savedGhostPlayer) => isPlayer(savedGhostPlayer) && setGhostPlayer(savedGhostPlayer));
     localforage.getItem(STORAGE_KEY_PLAYERS).then((players) => isPlayers(players) && setPlayers((prevPlayers) => prevPlayers.length > 0 ? prevPlayers : players));
     localforage.getItem(STORAGE_KEY_MATCHES).then((matches) => isMatches(matches) && setMatches(matches));
   }, []);
+
+  useEffect(() => {
+    localforage.setItem(STORAGE_KEY_GHOST_PLAYER, ghostPlayer);
+  }, [ghostPlayer]);
 
   useEffect(() => {
     localforage.setItem(STORAGE_KEY_PLAYERS, players);
@@ -225,7 +229,7 @@ export default function Home() {
       clearMatches();
       redirect();
     }
-  }, [params])
+  }, [params, redirect])
 
   return (
     <ThemeProvider theme={theme}>
@@ -374,6 +378,69 @@ export default function Home() {
             <TabPanel value={tab} index={2}>
               <Title>順位表</Title>
               <RankTable players={players} matches={matches} />
+
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell rowSpan={2}>番号</TableCell>
+                      <TableCell rowSpan={2}>名前</TableCell>
+                      {
+                        matches.map((match, index) => {
+                          return (
+                            <TableCell align="center" key={match.id} colSpan={2}>{index + 1}戦目</TableCell>
+                          )
+                        })
+                      }
+                      <TableCell rowSpan={2}>勝数</TableCell>
+                      <TableCell rowSpan={2}>全点</TableCell>
+                      <TableCell rowSpan={2}>勝点</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      {
+                        matches.map((match) => {
+                          return (
+                            <Fragment key={match.id}>
+                              <TableCell>対戦相手</TableCell>
+                              <TableCell>勝敗</TableCell>
+                            </Fragment>
+                          )
+                        })
+                      }
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {players.map((player, index) => {
+                      return (
+                        <TableRow key={player.id}>
+                          <TableCell>{index + 1}</TableCell>
+                          <TableCell>{player.name}</TableCell>
+                          {
+                            matches.map((match) => {
+                              const pair = getPairInMatch(player.id, match);
+                              const opponentId = pair ? getOpponentId(pair, player.id) : undefined;
+                              const opponentName = opponentId ? getPlayerName(opponentId, [...players, ghostPlayer]) : "";
+                              const result = pair ? getResult(pair, player.id) : "none";
+                              const resultMark = (result === "win") ? "◯" : (result === "lose" ? "×" : "");
+
+                              return (
+                                <Fragment key={match.id}>
+                                  <TableCell>{opponentName}</TableCell>
+                                  <TableCell>{resultMark}</TableCell>
+                                </Fragment>
+                              )
+                            })
+                          }
+                          <TableCell>{getPlayerWinCount(player.id, matches)}</TableCell>
+                          <TableCell>{getOpponentWinCount(player.id, matches)}</TableCell>
+                          <TableCell>{getDefeatedOpponentWinCount(player.id, matches)}</TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+
             </TabPanel>
           </Stack>
         </Box>
