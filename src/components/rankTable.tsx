@@ -48,7 +48,7 @@ export const RankTable = ({ players: players, matches: matches }: { players: Pla
                 }
             }
         }
-        return 0;
+        return Math.random() - 0.5;
     })
 
     return (
