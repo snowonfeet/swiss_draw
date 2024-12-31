@@ -68,6 +68,7 @@ export default function Home() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [ghostPlayer, setGhostPlayer] = useState<Player>({ id: makeId() as PlayerId, name: "不在" });
   const [matches, setMatches] = useState<Match[]>([]);
+  const [url, setURL] = useState<string | null>(null);
 
   const [tab, setTab] = useState(0);
 
@@ -209,9 +210,12 @@ export default function Home() {
     localforage.setItem(STORAGE_KEY_MATCHES, matches);
   }, [matches]);
 
-  const currentURL = window.location.href;
+  useEffect(() => {
+    setURL(window.location.href);
+  }, [])
+
   const currentPlayerNames = players.map((x) => x.name).join(",");
-  const qrCodeURL = `${currentURL}?players=${currentPlayerNames}`
+  const qrCodeURL = url ? `${url}?players=${currentPlayerNames}` : undefined;
 
   const router = useRouter();
   const params = useSearchParams();
@@ -294,7 +298,9 @@ export default function Home() {
               </List>
 
               <Stack alignItems="center" margin={1}>
-                <QRCode url={qrCodeURL} size={256} />
+                {
+                  (qrCodeURL) ? <QRCode url={qrCodeURL} size={256} /> : <></>
+                }
               </Stack>
             </TabPanel>
             <TabPanel value={tab} index={1}>
