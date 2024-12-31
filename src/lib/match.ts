@@ -1,5 +1,4 @@
 import { existPair, getOpponentId, getWinnerId, hasPlayerInPair } from "./pair";
-import { getPlayerName } from "./player";
 import { isEven, makeId } from "./util";
 
 const isPair = (arg: unknown): arg is Pair => {
