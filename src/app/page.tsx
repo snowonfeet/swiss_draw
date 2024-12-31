@@ -208,7 +208,6 @@ export default function Home() {
   const currentURL = window.location.href;
   const currentPlayerNames = players.map((x) => x.name).join(",");
   const qrCodeURL = `${currentURL}?players=${currentPlayerNames}`
-  console.log(qrCodeURL);
 
   const router = useRouter();
   const redirect = () => {
@@ -287,7 +286,9 @@ export default function Home() {
                 </ListItem>
               </List>
 
-              <QRCode url={currentURL} size={256} />
+              <Stack alignItems="center" margin={1}>
+                <QRCode url={qrCodeURL} size={256} />
+              </Stack>
             </TabPanel>
             <TabPanel value={tab} index={1}>
               <Title>対戦表</Title>
