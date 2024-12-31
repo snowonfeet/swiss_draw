@@ -14,6 +14,7 @@ import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
 import HighlightOffIcon from '@mui/icons-material/HighlightOff';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import QRCode from "@/components/qrcode";
 
 const theme = createTheme({
   typography: {
@@ -203,6 +204,8 @@ export default function Home() {
     localforage.setItem(STORAGE_KEY_MATCHES, matches);
   }, [matches]);
 
+  const currentURL = window.location.href;
+
   return (
     <ThemeProvider theme={theme}>
       <Container>
@@ -261,6 +264,8 @@ export default function Home() {
                   </Button>
                 </ListItem>
               </List>
+
+              <QRCode url={currentURL} size={256} />
             </TabPanel>
             <TabPanel value={tab} index={1}>
               <Title>対戦表</Title>
