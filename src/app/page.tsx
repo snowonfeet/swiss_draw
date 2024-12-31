@@ -2,7 +2,7 @@
 import { Box, Button, Container, Grid2, List, ListItem, ListSubheader, Stack, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, TextField, ThemeProvider, ToggleButton, Typography, createTheme } from "@mui/material";
 
 import IconButton from '@mui/material/IconButton';
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, Suspense, useEffect, useRef, useState } from "react";
 import localforage from "localforage";
 import { isEven, makeId } from "@/lib/util";
 import { getOpponentId, getResult, getSide, getWinnerId } from "@/lib/pair";
@@ -64,7 +64,7 @@ const Title = ({ children: children }: { children?: React.ReactNode }) => {
   )
 }
 
-export default function Home() {
+const HomeCore = () => {
   const [players, setPlayers] = useState<Player[]>([]);
   const [ghostPlayer, setGhostPlayer] = useState<Player>({ id: makeId() as PlayerId, name: "不在" });
   const [matches, setMatches] = useState<Match[]>([]);
@@ -456,4 +456,13 @@ export default function Home() {
       </Container >
     </ThemeProvider >
   );
+
+}
+
+export default function Home() {
+  return (
+    <Suspense>
+      <HomeCore />
+    </Suspense>
+  )
 }
