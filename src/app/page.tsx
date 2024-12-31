@@ -15,6 +15,7 @@ import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
 import HighlightOffIcon from '@mui/icons-material/HighlightOff';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import QRCode from "@/components/qrcode";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const theme = createTheme({
   typography: {
@@ -192,7 +193,7 @@ export default function Home() {
 
   useEffect(() => {
     localforage.getItem(STORAGE_KEY_GHOST_PLAYER).then((savedGhostPlayer) => { isPlayer(savedGhostPlayer) ? setGhostPlayer(savedGhostPlayer) : localforage.setItem(STORAGE_KEY_GHOST_PLAYER, ghostPlayer) });
-    localforage.getItem(STORAGE_KEY_PLAYERS).then((players) => isPlayers(players) && setPlayers(players));
+    localforage.getItem(STORAGE_KEY_PLAYERS).then((players) => isPlayers(players) && setPlayers((prevPlayers) => prevPlayers.length > 0 ? prevPlayers : players));
     localforage.getItem(STORAGE_KEY_MATCHES).then((matches) => isMatches(matches) && setMatches(matches));
   }, []);
 
@@ -205,6 +206,27 @@ export default function Home() {
   }, [matches]);
 
   const currentURL = window.location.href;
+  const currentPlayerNames = players.map((x) => x.name).join(",");
+  const qrCodeURL = `${currentURL}?players=${currentPlayerNames}`
+  console.log(qrCodeURL);
+
+  const router = useRouter();
+  const redirect = () => {
+    router.push("./");
+  };
+
+  const params = useSearchParams();
+  useEffect(() => {
+    const playerNames = params.get("players")?.split(",");
+    if (playerNames) {
+      const newPlayers: Player[] = playerNames.map((name) => {
+        return { name: name, id: makeId() as PlayerId }
+      });
+      setPlayers(newPlayers);
+      clearMatches();
+      redirect();
+    }
+  }, [params])
 
   return (
     <ThemeProvider theme={theme}>
