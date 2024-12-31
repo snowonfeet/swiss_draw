@@ -193,7 +193,7 @@ export default function Home() {
 
   useEffect(() => {
     localforage.getItem(STORAGE_KEY_GHOST_PLAYER).then((savedGhostPlayer) => isPlayer(savedGhostPlayer) && setGhostPlayer(savedGhostPlayer));
-    localforage.getItem(STORAGE_KEY_PLAYERS).then((players) => isPlayers(players) && setPlayers((prevPlayers) => prevPlayers.length > 0 ? prevPlayers : players));
+    localforage.getItem(STORAGE_KEY_PLAYERS).then((players) => isPlayers(players) && setPlayers(players));
     localforage.getItem(STORAGE_KEY_MATCHES).then((matches) => isMatches(matches) && setMatches(matches));
   }, []);
 
@@ -214,12 +214,12 @@ export default function Home() {
   const qrCodeURL = `${currentURL}?players=${currentPlayerNames}`
 
   const router = useRouter();
-  const redirect = () => {
-    router.push("./");
-  };
-
   const params = useSearchParams();
   useEffect(() => {
+    const redirect = () => {
+      router.push("./");
+    };
+
     const playerNames = params.get("players")?.split(",");
     if (playerNames) {
       const newPlayers: Player[] = playerNames.map((name) => {
@@ -227,9 +227,12 @@ export default function Home() {
       });
       setPlayers(newPlayers);
       clearMatches();
+      localforage.setItem(STORAGE_KEY_PLAYERS, []);
+      localforage.setItem(STORAGE_KEY_MATCHES, []);
+
       redirect();
     }
-  }, [params, redirect])
+  }, [params, router])
 
   return (
     <ThemeProvider theme={theme}>
