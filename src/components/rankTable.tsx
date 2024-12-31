@@ -1,4 +1,5 @@
 import { getDefeatedOpponentWinCount, getOpponentWinCount, getPlayerWinCount } from "@/lib/match";
+import { existPair, getWinnerId } from "@/lib/pair";
 import { Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from "@mui/material";
 
 type CellInfo = {
@@ -26,7 +27,28 @@ export const RankTable = ({ players: players, matches: matches }: { players: Pla
         }
 
         const defeatedOpponentWinDiff = b.defeatedOpponentWinCount - a.defeatedOpponentWinCount;
-        return defeatedOpponentWinDiff;
+        if (defeatedOpponentWinDiff !== 0) {
+            return defeatedOpponentWinDiff;
+        }
+
+        // 直接対決している場合はその結果を使用する.
+        for (const match of matches) {
+            for (const pair of match.pairList) {
+                if (existPair(a.id, b.id, pair)) {
+                    const winner = getWinnerId(pair);
+                    if (winner) {
+                        if (winner === a.id) {
+                            return -1;
+                        } else if (winner === b.id) {
+                            return 1;
+                        } else {
+                            return 0;
+                        }
+                    }
+                }
+            }
+        }
+        return 0;
     })
 
     return (
