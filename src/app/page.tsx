@@ -253,7 +253,7 @@ const HomeCore = () => {
             </Box>
 
             <TabPanel value={tab} index={0}>
-              <Title>参加者</Title>
+              <Title>{tabList[0]}</Title>
               <List disablePadding>
                 {players.map((player, index) => {
                   return (
@@ -304,7 +304,7 @@ const HomeCore = () => {
               </Stack>
             </TabPanel>
             <TabPanel value={tab} index={1}>
-              <Title>対戦表</Title>
+              <Title>{tabList[1]}</Title>
               <List disablePadding subheader={<ListSubheader>勝者の名前をクリックします。もう一度クリックするとリセットされます。</ListSubheader>}>
                 {matches.map((match, matchIndex) => {
                   return (
@@ -385,7 +385,7 @@ const HomeCore = () => {
 
             </TabPanel>
             <TabPanel value={tab} index={2}>
-              <Title>順位表</Title>
+              <Title>{tabList[2]}</Title>
               <RankTable players={players} matches={matches} />
 
               <TableContainer>
