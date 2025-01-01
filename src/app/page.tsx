@@ -74,7 +74,6 @@ const HomeCore = () => {
   const [matches, setMatches] = useState<Match[]>([]);
   const [url, setURL] = useState<string | null>(null);
 
-  const [gameName, setGameName] = useState("");
   const [currentGameId, setCurrentGameId] = useState<GameId | null>(null);
   const [gameNames, setGameNames] = useState<GameName[]>([]);
 
@@ -198,15 +197,24 @@ const HomeCore = () => {
   // ローカルストレージへの保存.
   const STORAGE_KEY_GAME_NAMES = "swiss-draw-game-names";
   const STORAGE_KEY_GHOST_PLAYER = "swiss-draw-ghost-player";
+
   const STORAGE_KEY_PLAYERS = "swiss-draw-players";
   const STORAGE_KEY_MATCHES = "swiss-draw-matches";
 
   useEffect(() => {
     localforage.getItem(STORAGE_KEY_GAME_NAMES).then((gameNames) => isGameNames(gameNames) && setGameNames(gameNames));
     localforage.getItem(STORAGE_KEY_GHOST_PLAYER).then((savedGhostPlayer) => isPlayer(savedGhostPlayer) && setGhostPlayer(savedGhostPlayer));
-    localforage.getItem(STORAGE_KEY_PLAYERS).then((players) => isPlayers(players) && setPlayers(players));
-    localforage.getItem(STORAGE_KEY_MATCHES).then((matches) => isMatches(matches) && setMatches(matches));
   }, []);
+
+  useEffect(() => {
+    if (currentGameId) {
+      localforage.getItem(`${STORAGE_KEY_PLAYERS}-${currentGameId}`).then((players) => isPlayers(players) && setPlayers(players));
+      localforage.getItem(`${STORAGE_KEY_MATCHES}-${currentGameId}`).then((matches) => isMatches(matches) && setMatches(matches));
+    } else {
+      setPlayers([]);
+      clearMatches();
+    }
+  }, [currentGameId]);
 
   useEffect(() => {
     localforage.setItem(STORAGE_KEY_GAME_NAMES, gameNames);
@@ -217,11 +225,15 @@ const HomeCore = () => {
   }, [ghostPlayer]);
 
   useEffect(() => {
-    localforage.setItem(STORAGE_KEY_PLAYERS, players);
+    if (currentGameId) {
+      localforage.setItem(`${STORAGE_KEY_PLAYERS}-${currentGameId}`, players);
+    }
   }, [players]);
 
   useEffect(() => {
-    localforage.setItem(STORAGE_KEY_MATCHES, matches);
+    if (currentGameId) {
+      localforage.setItem(`${STORAGE_KEY_MATCHES}-${currentGameId}`, matches);
+    }
   }, [matches]);
 
   useEffect(() => {

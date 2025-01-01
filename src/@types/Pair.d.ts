@@ -17,12 +17,6 @@ declare type Match = {
 
 declare type IndexPair = [left: number, right: number];
 
-declare type Game = {
-  id: GameId;
-  matches: Match[];
-  players: Player[];
-};
-
 declare type GameName = {
   name: string;
   id: GameId;
