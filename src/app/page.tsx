@@ -16,6 +16,10 @@ import HighlightOffIcon from '@mui/icons-material/HighlightOff';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import QRCode from "@/components/qrcode";
 import { useRouter, useSearchParams } from "next/navigation";
+import ArrowBackIosNew from "@mui/icons-material/ArrowBackIosNew";
+import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
+import AddCardIcon from '@mui/icons-material/AddCard';
+import { isGameNames } from "@/lib/game";
 
 const theme = createTheme({
   typography: {
@@ -69,6 +73,10 @@ const HomeCore = () => {
   const [ghostPlayer, setGhostPlayer] = useState<Player>({ id: makeId() as PlayerId, name: "不在" });
   const [matches, setMatches] = useState<Match[]>([]);
   const [url, setURL] = useState<string | null>(null);
+
+  const [gameName, setGameName] = useState("");
+  const [currentGameId, setCurrentGameId] = useState<GameId | null>(null);
+  const [gameNames, setGameNames] = useState<GameName[]>([]);
 
   const [tab, setTab] = useState(0);
 
@@ -188,15 +196,21 @@ const HomeCore = () => {
   };
 
   // ローカルストレージへの保存.
+  const STORAGE_KEY_GAME_NAMES = "swiss-draw-game-names";
   const STORAGE_KEY_GHOST_PLAYER = "swiss-draw-ghost-player";
   const STORAGE_KEY_PLAYERS = "swiss-draw-players";
   const STORAGE_KEY_MATCHES = "swiss-draw-matches";
 
   useEffect(() => {
+    localforage.getItem(STORAGE_KEY_GAME_NAMES).then((gameNames) => isGameNames(gameNames) && setGameNames(gameNames));
     localforage.getItem(STORAGE_KEY_GHOST_PLAYER).then((savedGhostPlayer) => isPlayer(savedGhostPlayer) && setGhostPlayer(savedGhostPlayer));
     localforage.getItem(STORAGE_KEY_PLAYERS).then((players) => isPlayers(players) && setPlayers(players));
     localforage.getItem(STORAGE_KEY_MATCHES).then((matches) => isMatches(matches) && setMatches(matches));
   }, []);
+
+  useEffect(() => {
+    localforage.setItem(STORAGE_KEY_GAME_NAMES, gameNames);
+  }, [gameNames]);
 
   useEffect(() => {
     localforage.setItem(STORAGE_KEY_GHOST_PLAYER, ghostPlayer);
@@ -238,220 +252,321 @@ const HomeCore = () => {
     }
   }, [params, router])
 
+  const getCurrentGameName = (gameId: GameId | null) => {
+    if (!gameId) {
+      return "";
+    }
+    const gameName = gameNames.find((x) => x.id === gameId);
+    return gameName ? gameName.name : "";
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <Container>
 
         <Box sx={{ width: "100%" }}>
-          <Stack spacing={1}>
-            <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-              <Tabs value={tab} onChange={handleChangeTab} centered>
-                {
-                  tabList.map((tabItem) => { return <Tab key={tabItem} label={tabItem} sx={{ flexGrow: 1 }} />; })
-                }
-              </Tabs>
-            </Box>
-
-            <TabPanel value={tab} index={0}>
-              <Title>{tabList[0]}</Title>
-              <List disablePadding>
-                {players.map((player, index) => {
-                  return (
-                    <ListItem key={player.id}>
-                      <Stack spacing={1} direction="row" sx={{ width: "100%" }} alignItems="center">
-                        <Typography>
-                          {index + 1}
-                        </Typography>
-                        <TextField
-                          value={player.name}
-                          onChange={(e) => handleChangePlayerName(player.id, e.target.value)}
-                          autoFocus={(index === (players.length - 1)) && requestAutoFocus}
-                          placeholder="参加者名を入力"
-                          helperText={getHelperTextForNameValidation(player.name, players)}
-                          error={isValidPlayerName(player.name, players) !== "valid"}
-                          fullWidth
-                        />
-                        <IconButton
-                          aria-label="delete player"
-                          onClick={() => handleDeletePlayer(index)}
-                          color="error"
-                        >
-                          <HighlightOffIcon />
-                        </IconButton>
-                      </Stack>
-                    </ListItem>
-                  )
-                })
-                }
-                <ListItem>
-                  <Button
-                    variant="outlined"
-                    onClick={handleAddPlayer}
-                    fullWidth
-                    startIcon={<PersonAddIcon />}
+          {
+            currentGameId ? (
+              <Stack spacing={1}>
+                <Stack direction="row">
+                  <IconButton
+                    onClick={() => { setCurrentGameId(null) }}
                   >
-                    <Typography>
-                      参加者を追加
-                    </Typography>
-                  </Button>
-                </ListItem>
-              </List>
+                    <ArrowBackIosNew />
+                  </IconButton>
 
-              <Stack alignItems="center" margin={1}>
-                {
-                  (qrCodeURL) ? <QRCode url={qrCodeURL} size={256} /> : <></>
-                }
-              </Stack>
-            </TabPanel>
-            <TabPanel value={tab} index={1}>
-              <Title>{tabList[1]}</Title>
-              <List disablePadding subheader={<ListSubheader>勝者の名前をクリックします。もう一度クリックするとリセットされます。</ListSubheader>}>
-                {matches.map((match, matchIndex) => {
-                  return (
-                    <ListItem key={match.id} sx={{ py: 1 }} disablePadding>
-                      <Stack sx={{ width: "100%" }}>
-                        <Typography>{`${matchIndex + 1}試合目`}</Typography>
-                        <List disablePadding>
-                          {match.pairList.map((pair) => {
-                            const PlayerButton = ({ playerId: playerId }: { playerId: PlayerId }) => {
-                              return (
-                                <ToggleButton color="primary" fullWidth value={playerId} selected={getWinnerId(pair) === playerId} onChange={(_, newWinnerId) => handleWin(newWinnerId, match.id, pair.id)}>
-                                  <Stack direction="column" alignItems="center">
-                                    <Stack direction="row" alignItems="center" spacing={1}>
-                                      {
-                                        (pair.winner === "none") ? <></> : (getWinnerId(pair) === playerId) ? <CircleOutlinedIcon /> : <CloseOutlinedIcon />
-                                      }
-                                      <Typography variant="h5" component="div">
-                                        {`${getPlayerName(playerId, [...players, ghostPlayer])}`}
-                                      </Typography>
-                                    </Stack>
-                                    <Typography variant="subtitle1" component="div">
-                                      勝数：{getPlayerWinCountUntilMatchId(playerId, match.id, matches)}
-                                    </Typography>
-                                  </Stack>
-                                </ToggleButton>
-                              )
-                            };
-
-                            return (
-                              <ListItem key={pair.id} disablePadding>
-                                <Box sx={{ width: "100%" }}>
-                                  <Grid2 container spacing={2} alignItems="baseline">
-                                    <Grid2 size="grow">
-                                      <PlayerButton playerId={pair.left} />
-                                    </Grid2>
-
-                                    <Grid2 size="auto">
-                                      <Typography>
-                                        VS
-                                      </Typography>
-                                    </Grid2>
-
-                                    <Grid2 size="grow">
-                                      <PlayerButton playerId={pair.right} />
-                                    </Grid2>
-                                  </Grid2>
-                                </Box>
-                              </ListItem>
-                            )
-                          })}
-                        </List>
-
-                      </Stack>
-                    </ListItem>
-                  )
-                })}
-              </List>
-
-              <Stack sx={{ width: "100%" }} spacing={2}>
-                <Button
-                  variant="contained"
-                  onClick={handleMakeMatch}
-                >
-                  組み合わせを決める
-                </Button>
-
-                <Button
-                  color="error"
-                  variant="outlined"
-                  onClick={() => clearMatches()}
-                >
-                  対戦表を削除する
-                </Button>
-              </Stack>
+                  <TextField
+                    value={getCurrentGameName(currentGameId)}
+                    onChange={(e) => {
+                      setGameNames((prevGameNames) => {
+                        if (currentGameId) {
+                          return prevGameNames.map((gameName) => {
+                            if (gameName.id === currentGameId) {
+                              return {
+                                ...gameName,
+                                name: e.target.value,
+                              };
+                            } else {
+                              return gameName;
+                            }
+                          })
+                        } else {
+                          return prevGameNames;
+                        }
+                      })
+                    }}
+                    placeholder="大会名を入力"
+                    fullWidth
+                  />
+                </Stack>
+                <Box sx={{ borderBottom: 1, borderColor: 'divider', width: "100%" }} >
+                  <Tabs value={tab} onChange={handleChangeTab} centered>
+                    {
+                      tabList.map((tabItem) => { return <Tab key={tabItem} label={tabItem} sx={{ flexGrow: 1 }} />; })
+                    }
+                  </Tabs>
+                </Box>
 
 
-              <div ref={scrollEndRef} />
-
-            </TabPanel>
-            <TabPanel value={tab} index={2}>
-              <Title>{tabList[2]}</Title>
-              <RankTable players={players} matches={matches} />
-
-              <TableContainer>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell rowSpan={2}>番号</TableCell>
-                      <TableCell rowSpan={2}>名前</TableCell>
-                      {
-                        matches.map((match, index) => {
-                          return (
-                            <TableCell align="center" key={match.id} colSpan={2}>{index + 1}戦目</TableCell>
-                          )
-                        })
-                      }
-                      <TableCell rowSpan={2}>勝数</TableCell>
-                      <TableCell rowSpan={2}>全点</TableCell>
-                      <TableCell rowSpan={2}>勝点</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      {
-                        matches.map((match) => {
-                          return (
-                            <Fragment key={match.id}>
-                              <TableCell>対戦相手</TableCell>
-                              <TableCell>勝敗</TableCell>
-                            </Fragment>
-                          )
-                        })
-                      }
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
+                <TabPanel value={tab} index={0}>
+                  <Title>{tabList[0]}</Title>
+                  <List disablePadding>
                     {players.map((player, index) => {
                       return (
-                        <TableRow key={player.id}>
-                          <TableCell>{index + 1}</TableCell>
-                          <TableCell>{player.name}</TableCell>
+                        <ListItem key={player.id}>
+                          <Stack spacing={1} direction="row" sx={{ width: "100%" }} alignItems="center">
+                            <Typography>
+                              {index + 1}
+                            </Typography>
+                            <TextField
+                              value={player.name}
+                              onChange={(e) => handleChangePlayerName(player.id, e.target.value)}
+                              autoFocus={(index === (players.length - 1)) && requestAutoFocus}
+                              placeholder="参加者名を入力"
+                              helperText={getHelperTextForNameValidation(player.name, players)}
+                              error={isValidPlayerName(player.name, players) !== "valid"}
+                              fullWidth
+                            />
+                            <IconButton
+                              aria-label="delete player"
+                              onClick={() => handleDeletePlayer(index)}
+                              color="error"
+                            >
+                              <HighlightOffIcon />
+                            </IconButton>
+                          </Stack>
+                        </ListItem>
+                      )
+                    })
+                    }
+                    <ListItem>
+                      <Button
+                        variant="contained"
+                        onClick={handleAddPlayer}
+                        fullWidth
+                        startIcon={<PersonAddIcon />}
+                      >
+                        <Typography sx={{ m: 1 }}>
+                          参加者を追加
+                        </Typography>
+                      </Button>
+                    </ListItem>
+                  </List>
+
+                  <Stack alignItems="center" margin={1}>
+                    {
+                      (qrCodeURL) ? <QRCode url={qrCodeURL} size={256} /> : <></>
+                    }
+                  </Stack>
+                </TabPanel>
+                <TabPanel value={tab} index={1}>
+                  <Title>{tabList[1]}</Title>
+                  <List disablePadding subheader={<ListSubheader>勝者の名前をクリックします。もう一度クリックするとリセットされます。</ListSubheader>}>
+                    {matches.map((match, matchIndex) => {
+                      return (
+                        <ListItem key={match.id} sx={{ py: 1 }} disablePadding>
+                          <Stack sx={{ width: "100%" }}>
+                            <Typography>{`${matchIndex + 1}試合目`}</Typography>
+                            <List disablePadding>
+                              {match.pairList.map((pair) => {
+                                const PlayerButton = ({ playerId: playerId }: { playerId: PlayerId }) => {
+                                  return (
+                                    <ToggleButton color="primary" fullWidth value={playerId} selected={getWinnerId(pair) === playerId} onChange={(_, newWinnerId) => handleWin(newWinnerId, match.id, pair.id)}>
+                                      <Stack direction="column" alignItems="center">
+                                        <Stack direction="row" alignItems="center" spacing={1}>
+                                          {
+                                            (pair.winner === "none") ? <></> : (getWinnerId(pair) === playerId) ? <CircleOutlinedIcon /> : <CloseOutlinedIcon />
+                                          }
+                                          <Typography variant="h5" component="div">
+                                            {`${getPlayerName(playerId, [...players, ghostPlayer])}`}
+                                          </Typography>
+                                        </Stack>
+                                        <Typography variant="subtitle1" component="div">
+                                          勝数：{getPlayerWinCountUntilMatchId(playerId, match.id, matches)}
+                                        </Typography>
+                                      </Stack>
+                                    </ToggleButton>
+                                  )
+                                };
+
+                                return (
+                                  <ListItem key={pair.id} disablePadding>
+                                    <Box sx={{ width: "100%" }}>
+                                      <Grid2 container spacing={2} alignItems="baseline">
+                                        <Grid2 size="grow">
+                                          <PlayerButton playerId={pair.left} />
+                                        </Grid2>
+
+                                        <Grid2 size="auto">
+                                          <Typography>
+                                            VS
+                                          </Typography>
+                                        </Grid2>
+
+                                        <Grid2 size="grow">
+                                          <PlayerButton playerId={pair.right} />
+                                        </Grid2>
+                                      </Grid2>
+                                    </Box>
+                                  </ListItem>
+                                )
+                              })}
+                            </List>
+
+                          </Stack>
+                        </ListItem>
+                      )
+                    })}
+                  </List>
+
+                  <Stack sx={{ width: "100%" }} spacing={2}>
+                    <Button
+                      variant="contained"
+                      onClick={handleMakeMatch}
+                    >
+                      組み合わせを決める
+                    </Button>
+
+                    <Button
+                      color="error"
+                      variant="outlined"
+                      onClick={() => clearMatches()}
+                    >
+                      対戦表を削除する
+                    </Button>
+                  </Stack>
+
+
+                  <div ref={scrollEndRef} />
+
+                </TabPanel>
+                <TabPanel value={tab} index={2}>
+                  <Title>{tabList[2]}</Title>
+                  <RankTable players={players} matches={matches} />
+
+                  <TableContainer>
+                    <Table>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell rowSpan={2}>番号</TableCell>
+                          <TableCell rowSpan={2}>名前</TableCell>
+                          {
+                            matches.map((match, index) => {
+                              return (
+                                <TableCell align="center" key={match.id} colSpan={2}>{index + 1}戦目</TableCell>
+                              )
+                            })
+                          }
+                          <TableCell rowSpan={2}>勝数</TableCell>
+                          <TableCell rowSpan={2}>全点</TableCell>
+                          <TableCell rowSpan={2}>勝点</TableCell>
+                        </TableRow>
+                        <TableRow>
                           {
                             matches.map((match) => {
-                              const pair = getPairInMatch(player.id, match);
-                              const opponentId = pair ? getOpponentId(pair, player.id) : undefined;
-                              const opponentName = opponentId ? getPlayerName(opponentId, [...players, ghostPlayer]) : "";
-                              const result = pair ? getResult(pair, player.id) : "none";
-                              const resultMark = (result === "win") ? "◯" : (result === "lose" ? "×" : "");
-
                               return (
                                 <Fragment key={match.id}>
-                                  <TableCell>{opponentName}</TableCell>
-                                  <TableCell>{resultMark}</TableCell>
+                                  <TableCell>対戦相手</TableCell>
+                                  <TableCell>勝敗</TableCell>
                                 </Fragment>
                               )
                             })
                           }
-                          <TableCell>{getPlayerWinCount(player.id, matches)}</TableCell>
-                          <TableCell>{getOpponentWinCount(player.id, matches)}</TableCell>
-                          <TableCell>{getDefeatedOpponentWinCount(player.id, matches)}</TableCell>
                         </TableRow>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+                      </TableHead>
+                      <TableBody>
+                        {players.map((player, index) => {
+                          return (
+                            <TableRow key={player.id}>
+                              <TableCell>{index + 1}</TableCell>
+                              <TableCell>{player.name}</TableCell>
+                              {
+                                matches.map((match) => {
+                                  const pair = getPairInMatch(player.id, match);
+                                  const opponentId = pair ? getOpponentId(pair, player.id) : undefined;
+                                  const opponentName = opponentId ? getPlayerName(opponentId, [...players, ghostPlayer]) : "";
+                                  const result = pair ? getResult(pair, player.id) : "none";
+                                  const resultMark = (result === "win") ? "◯" : (result === "lose" ? "×" : "");
 
-            </TabPanel>
-          </Stack>
+                                  return (
+                                    <Fragment key={match.id}>
+                                      <TableCell>{opponentName}</TableCell>
+                                      <TableCell>{resultMark}</TableCell>
+                                    </Fragment>
+                                  )
+                                })
+                              }
+                              <TableCell>{getPlayerWinCount(player.id, matches)}</TableCell>
+                              <TableCell>{getOpponentWinCount(player.id, matches)}</TableCell>
+                              <TableCell>{getDefeatedOpponentWinCount(player.id, matches)}</TableCell>
+                            </TableRow>
+                          )
+                        })}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+
+                </TabPanel>
+              </Stack>
+            ) : (
+              <Stack spacing={1}>
+
+                <Title>{"大会"}</Title>
+                <List>
+                  {gameNames.map((gameName, index) => {
+                    return (
+                      <ListItem key={gameName.id} >
+                        <Stack spacing={1} direction="row" sx={{ width: "100%" }} alignItems="center">
+                          <Typography>
+                            {index + 1}
+                          </Typography>
+                          <Button
+                            variant="outlined"
+                            fullWidth
+                            endIcon={<ArrowForwardIosIcon />}
+                            onClick={() => {
+                              setCurrentGameId(gameName.id)
+                            }}
+                          >
+                            <Typography sx={{ m: 1 }}>
+                              {(gameName.name.length > 0 ? gameName.name : "無題")}
+                            </Typography>
+                          </Button>
+                          <IconButton
+                            aria-label="delete game"
+                            onClick={() => {
+                              setGameNames((prevGameNames) => {
+                                return prevGameNames.toSpliced(index, 1);
+                              })
+                            }}
+                            color="error"
+                          >
+                            <HighlightOffIcon />
+                          </IconButton>
+                        </Stack>
+                      </ListItem>
+                    )
+                  })}
+                  <ListItem>
+                    <Button
+                      variant="contained"
+                      onClick={() => {
+                        const newGameName = { id: makeId() as GameId, name: "大会" };
+                        setGameNames((prevGameNames) => ([...prevGameNames, newGameName]))
+                        setCurrentGameId(newGameName.id);
+                      }}
+                      fullWidth
+                      startIcon={<AddCardIcon />}
+                    >
+                      <Typography sx={{ m: 1 }}>
+                        大会を追加
+                      </Typography>
+                    </Button>
+                  </ListItem>
+                </List>
+              </Stack>
+            )
+          }
         </Box>
       </Container >
     </ThemeProvider >
