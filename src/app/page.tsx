@@ -547,9 +547,12 @@ const HomeCore = () => {
                           <IconButton
                             aria-label="delete game"
                             onClick={() => {
+                              const deleteGameId = gameNames[index].id;
                               setGameNames((prevGameNames) => {
                                 return prevGameNames.toSpliced(index, 1);
                               })
+                              localforage.removeItem(`${STORAGE_KEY_MATCHES}-${deleteGameId}`);
+                              localforage.removeItem(`${STORAGE_KEY_PLAYERS}-${deleteGameId}`);
                             }}
                             color="error"
                           >
