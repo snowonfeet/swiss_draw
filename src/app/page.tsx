@@ -534,7 +534,7 @@ const HomeCore = () => {
                           {
                             matches.map((match, index) => {
                               return (
-                                <TableCell align="center" key={match.id} colSpan={2}>{index + 1}戦目</TableCell>
+                                <TableCell align="center" key={match.id} colSpan={3}>{index + 1}戦目</TableCell>
                               )
                             })
                           }
@@ -549,6 +549,7 @@ const HomeCore = () => {
                                 <Fragment key={match.id}>
                                   <TableCell>対戦相手</TableCell>
                                   <TableCell>勝敗</TableCell>
+                                  <TableCell>勝数</TableCell>
                                 </Fragment>
                               )
                             })
@@ -566,6 +567,7 @@ const HomeCore = () => {
                                   const pair = getPairInMatch(player.id, match);
                                   const opponentId = pair ? getOpponentId(pair, player.id) : undefined;
                                   const opponentName = opponentId ? getPlayerName(opponentId, [...players, ghostPlayer]) : "";
+                                  const opponentWinCount = opponentId ? getOpponentWinCount(opponentId, matches) : undefined;
                                   const result = pair ? getResult(pair, player.id) : "none";
                                   const resultMark = (result === "win") ? "◯" : (result === "lose" ? "×" : "");
 
@@ -573,6 +575,7 @@ const HomeCore = () => {
                                     <Fragment key={match.id}>
                                       <TableCell>{opponentName}</TableCell>
                                       <TableCell>{resultMark}</TableCell>
+                                      <TableCell>{(opponentWinCount !== undefined) ? opponentWinCount : ""}</TableCell>
                                     </Fragment>
                                   )
                                 })
