@@ -567,7 +567,7 @@ const HomeCore = () => {
                                   const pair = getPairInMatch(player.id, match);
                                   const opponentId = pair ? getOpponentId(pair, player.id) : undefined;
                                   const opponentName = opponentId ? getPlayerName(opponentId, [...players, ghostPlayer]) : "";
-                                  const opponentWinCount = opponentId ? getOpponentWinCount(opponentId, matches) : undefined;
+                                  const opponentWinCount = opponentId ? getPlayerWinCount(opponentId, matches) : undefined;
                                   const result = pair ? getResult(pair, player.id) : "none";
                                   const resultMark = (result === "win") ? "◯" : (result === "lose" ? "×" : "");
 
