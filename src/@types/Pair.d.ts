@@ -1,6 +1,7 @@
 declare type Winner = "left" | "right" | "none";
 declare type PairId = Id<string, "Pair">;
 declare type MatchId = Id<string, "Match">;
+declare type GameId = Id<string, "Game">;
 
 declare type Pair = {
   left: PlayerId;
@@ -15,3 +16,8 @@ declare type Match = {
 };
 
 declare type IndexPair = [left: number, right: number];
+
+declare type GameName = {
+  name: string;
+  id: GameId;
+};
