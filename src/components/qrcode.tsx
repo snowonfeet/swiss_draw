@@ -11,6 +11,7 @@ const QRCode: FC<QRCodeProps> = ({ url, size }) => {
         <QRCodeCanvas
             value={url}
             size={size}
+            marginSize={2}
         />
     )
 }

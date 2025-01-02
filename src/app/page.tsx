@@ -1,5 +1,5 @@
 "use client";
-import { Box, Button, Container, Grid2, List, ListItem, ListSubheader, Stack, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, TextField, ThemeProvider, ToggleButton, Typography, createTheme } from "@mui/material";
+import { Box, Button, Container, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Grid2, List, ListItem, ListSubheader, Stack, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, TextField, ThemeProvider, ToggleButton, Typography, createTheme } from "@mui/material";
 
 import IconButton from '@mui/material/IconButton';
 import { Fragment, Suspense, useEffect, useRef, useState } from "react";
@@ -14,12 +14,12 @@ import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
 import HighlightOffIcon from '@mui/icons-material/HighlightOff';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
-import QRCode from "@/components/qrcode";
 import { useRouter, useSearchParams } from "next/navigation";
 import ArrowBackIosNew from "@mui/icons-material/ArrowBackIosNew";
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import AddCardIcon from '@mui/icons-material/AddCard';
 import { isGameNames } from "@/lib/game";
+import { QRBackdroop } from "@/components/qrBackdrop";
 
 const theme = createTheme({
   typography: {
@@ -72,7 +72,13 @@ const HomeCore = () => {
   const [players, setPlayers] = useState<Player[]>([]);
   const [ghostPlayer, setGhostPlayer] = useState<Player>({ id: makeId() as PlayerId, name: "不在" });
   const [matches, setMatches] = useState<Match[]>([]);
+
   const [url, setURL] = useState<string | null>(null);
+
+  const [qrOpen, setQROpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogPlayerNames, setDialogPlayerNames] = useState<string[]>([]);
+  const [dialogGameName, setDialogGameName] = useState("");
 
   const [currentGameId, setCurrentGameId] = useState<GameId | null>(null);
   const [gameNames, setGameNames] = useState<GameName[]>([]);
@@ -237,32 +243,8 @@ const HomeCore = () => {
   }, [matches]);
 
   useEffect(() => {
-    setURL(window.location.href);
+    setURL(window.location.origin + window.location.pathname);
   }, [])
-
-  const currentPlayerNames = players.map((x) => x.name).join(",");
-  const qrCodeURL = url ? `${url}?players=${currentPlayerNames}` : undefined;
-
-  const router = useRouter();
-  const params = useSearchParams();
-  useEffect(() => {
-    const redirect = () => {
-      router.push("./");
-    };
-
-    const playerNames = params.get("players")?.split(",");
-    if (playerNames) {
-      const newPlayers: Player[] = playerNames.map((name) => {
-        return { name: name, id: makeId() as PlayerId }
-      });
-      setPlayers(newPlayers);
-      clearMatches();
-      localforage.setItem(STORAGE_KEY_PLAYERS, []);
-      localforage.setItem(STORAGE_KEY_MATCHES, []);
-
-      redirect();
-    }
-  }, [params, router])
 
   const getCurrentGameName = (gameId: GameId | null) => {
     if (!gameId) {
@@ -272,9 +254,86 @@ const HomeCore = () => {
     return gameName ? gameName.name : "";
   };
 
+
+  const currentPlayerNames = players.map((x) => x.name).join(",");
+  const currentGameName = getCurrentGameName(currentGameId);
+  const qrCodeRawURL = url ? `${url}?players=${currentPlayerNames}&game=${currentGameName}` : undefined;
+  const qrCodeURL = qrCodeRawURL ? encodeURI(qrCodeRawURL) : undefined;
+
+  const router = useRouter();
+  const params = useSearchParams();
+  const redirect = () => {
+    router.push("./");
+  };
+  useEffect(() => {
+
+    const game = params.get("game");
+    const playerNames = params.get("players")?.split(",");
+
+    if (playerNames || game) {
+      setDialogOpen(true);
+
+      if (playerNames) {
+        setDialogPlayerNames(playerNames);
+      }
+
+      if (game) {
+        setDialogGameName(game);
+      }
+    }
+  }, [params, router])
+
   return (
     <ThemeProvider theme={theme}>
       <Container>
+        <Dialog open={dialogOpen} onClose={() => { setDialogOpen(false) }}>
+          <DialogTitle>{`大会を作成`}</DialogTitle>
+          <DialogContent>
+
+            <Stack spacing={1}>
+              <DialogContentText>
+                以下の内容で大会を作成しますか？大会名と参加者は後で編集できます。
+              </DialogContentText>
+              <Typography>
+                大会名：「{dialogGameName.length > 0 ? dialogGameName : "無題"}」
+              </Typography>
+              <Typography>
+                参加者：{dialogPlayerNames.join("、")}
+              </Typography>
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button variant="contained" onClick={() => {
+              const newGameName = { id: makeId() as GameId, name: dialogGameName };
+              setGameNames((prevGameNames) => ([...prevGameNames, newGameName]))
+              setCurrentGameId(newGameName.id);
+              const newPlayers: Player[] = dialogPlayerNames.map((name) => {
+                return { name: name, id: makeId() as PlayerId };
+              });
+              setPlayers(newPlayers);
+              clearMatches();
+
+              setDialogOpen(false)
+              setDialogPlayerNames([]);
+              setDialogGameName("");
+              redirect();
+            }}>
+              <Typography>
+                OK
+              </Typography>
+            </Button>
+            <Button variant="outlined" onClick={() => {
+              setDialogOpen(false);
+              setDialogPlayerNames([]);
+              setDialogGameName("");
+              redirect();
+            }}>
+              <Typography>
+                キャンセル
+              </Typography>
+            </Button>
+          </DialogActions>
+        </Dialog>
 
         <Box sx={{ width: "100%" }}>
           {
@@ -363,13 +422,28 @@ const HomeCore = () => {
                         </Typography>
                       </Button>
                     </ListItem>
+                    <ListItem>
+                      <Button
+                        variant="outlined"
+                        onClick={() => { setQROpen((prev) => !prev) }}
+                        fullWidth
+                      >
+                        <Typography sx={{ m: 1 }}>
+                          QRコードを表示
+                        </Typography>
+                      </Button>
+                    </ListItem>
                   </List>
 
-                  <Stack alignItems="center" margin={1}>
-                    {
-                      (qrCodeURL) ? <QRCode url={qrCodeURL} size={256} /> : <></>
-                    }
-                  </Stack>
+                  <Typography>
+                    {qrCodeRawURL}
+                  </Typography>
+                  <Typography>
+                    {qrCodeURL}
+                  </Typography>
+                  {
+                    (qrCodeURL) ? <QRBackdroop open={qrOpen} onClose={() => { setQROpen((prev) => !prev) }} url={qrCodeURL} /> : <></>
+                  }
                 </TabPanel>
                 <TabPanel value={tab} index={1}>
                   <Title>{tabList[1]}</Title>
@@ -456,6 +530,7 @@ const HomeCore = () => {
                   <Title>{tabList[2]}</Title>
                   <RankTable players={players} matches={matches} />
 
+                  <Title>対戦結果</Title>
                   <TableContainer>
                     <Table>
                       <TableHead>
@@ -469,9 +544,9 @@ const HomeCore = () => {
                               )
                             })
                           }
-                          <TableCell rowSpan={2}>勝数</TableCell>
-                          <TableCell rowSpan={2}>全点</TableCell>
-                          <TableCell rowSpan={2}>勝点</TableCell>
+                          <TableCell rowSpan={2} align="right">勝数</TableCell>
+                          <TableCell rowSpan={2} align="right">全点</TableCell>
+                          <TableCell rowSpan={2} align="right">勝点</TableCell>
                         </TableRow>
                         <TableRow>
                           {
@@ -508,9 +583,9 @@ const HomeCore = () => {
                                   )
                                 })
                               }
-                              <TableCell>{getPlayerWinCount(player.id, matches)}</TableCell>
-                              <TableCell>{getOpponentWinCount(player.id, matches)}</TableCell>
-                              <TableCell>{getDefeatedOpponentWinCount(player.id, matches)}</TableCell>
+                              <TableCell align="right">{getPlayerWinCount(player.id, matches)}</TableCell>
+                              <TableCell align="right">{getOpponentWinCount(player.id, matches)}</TableCell>
+                              <TableCell align="right">{getDefeatedOpponentWinCount(player.id, matches)}</TableCell>
                             </TableRow>
                           )
                         })}
