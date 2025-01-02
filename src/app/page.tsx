@@ -435,12 +435,6 @@ const HomeCore = () => {
                     </ListItem>
                   </List>
 
-                  <Typography>
-                    {qrCodeRawURL}
-                  </Typography>
-                  <Typography>
-                    {qrCodeURL}
-                  </Typography>
                   {
                     (qrCodeURL) ? <QRBackdroop open={qrOpen} onClose={() => { setQROpen((prev) => !prev) }} url={qrCodeURL} /> : <></>
                   }
