@@ -1,15 +1,15 @@
-import { isEmpty, makeId } from "./util";
+import { isEmpty } from "./util";
 
-const isPlayer = (arg: unknown): arg is Player => {
+export const isPlayer = (arg: unknown): arg is Player => {
   const record = arg as Record<keyof Player, unknown>;
-  return typeof record.id === "string" && typeof record.name === "string";
+  return (
+    record && typeof record.id === "string" && typeof record.name === "string"
+  );
 };
 
 export const isPlayers = (arg: unknown): arg is Player[] => {
   return Array.isArray(arg) && arg.every(isPlayer);
 };
-
-export const GHOST_PLAYER: Player = { name: "不在", id: makeId() as PlayerId };
 
 const hasDuplicatedPlayerName = (name: string, players: Player[]) => {
   let i = 0;
