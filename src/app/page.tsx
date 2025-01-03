@@ -197,6 +197,7 @@ const HomeCore = () => {
   }
 
   const handleChangeTab = (_: React.SyntheticEvent, newTab: number) => {
+    setRequestAutoFocus(false);
     setTab(newTab);
   };
 
@@ -216,9 +217,11 @@ const HomeCore = () => {
     if (currentGameId) {
       localforage.getItem(`${STORAGE_KEY_PLAYERS}-${currentGameId}`).then((players) => isPlayers(players) && setPlayers(players));
       localforage.getItem(`${STORAGE_KEY_MATCHES}-${currentGameId}`).then((matches) => isMatches(matches) && setMatches(matches));
+      setRequestAutoFocus(false);
     } else {
       setPlayers([]);
       clearMatches();
+      setRequestAutoFocus(false);
     }
   }, [currentGameId]);
 

@@ -37,7 +37,7 @@ export const existPair = (
   if (pair.left === left && pair.right === right) {
     return true;
   }
-  if (pair.right === left && pair.right === right) {
+  if (pair.right === left && pair.left === right) {
     return true;
   }
   return false;
