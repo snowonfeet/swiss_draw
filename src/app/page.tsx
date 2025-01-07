@@ -4,11 +4,11 @@ import { Box, Button, Container, Dialog, DialogActions, DialogContent, DialogCon
 import IconButton from '@mui/material/IconButton';
 import { Fragment, Suspense, useEffect, useRef, useState } from "react";
 import localforage from "localforage";
-import { isEven, makeId } from "@/lib/util";
+import { isEmpty, isEven, makeId } from "@/lib/util";
 import { getOpponentId, getResult, getSide, getWinnerId } from "@/lib/pair";
 import { indigo } from "@mui/material/colors";
 import { getHelperTextForNameValidation, getPlayerName, isPlayer, isPlayers, isValidPlayerName } from "@/lib/player";
-import { getDefeatedOpponentWinCount, getOpponentWinCount, getPairInMatch, getPlayerWinCount, getPlayerWinCountUntilMatchId, isMatches, swissDraw } from "@/lib/match";
+import { getDefeatedOpponentWinCount, getOpponentWinCount, getPairInMatch, getPlayerWinCount, getPlayerWinCountUntilMatchId, isMatches, isUniqueMatch, makeAllMatches, printMatch, swissDraw, swissDraw2 } from "@/lib/match";
 import { RankTable } from "@/components/rankTable";
 import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
@@ -72,6 +72,7 @@ const HomeCore = () => {
   const [players, setPlayers] = useState<Player[]>([]);
   const [ghostPlayer, setGhostPlayer] = useState<Player>({ id: makeId() as PlayerId, name: "不在" });
   const [matches, setMatches] = useState<Match[]>([]);
+  const [restMatches, setRestMatches] = useState<Match[]>([]);
 
   const [url, setURL] = useState<string | null>(null);
 
@@ -96,6 +97,7 @@ const HomeCore = () => {
 
   const clearMatches = () => {
     setMatches([]);
+    setRestMatches([]);
   }
 
   const handleAddPlayer = () => {
@@ -132,6 +134,7 @@ const HomeCore = () => {
   };
 
   const handleMakeMatch = () => {
+
     for (const match of matches) {
       for (const pair of match.pairList) {
         if (pair.winner === "none") {
@@ -142,30 +145,66 @@ const HomeCore = () => {
       }
     }
 
-    let newMatch = swissDraw(players, matches, ghostPlayer);
+    const isNew = isEmpty(matches) && isEmpty(restMatches);
 
-    if (!newMatch) {
+    const makeNewMatch = () => {
+      if (isNew) {
+        const allMatches = makeAllMatches(players, ghostPlayer);
+        if (allMatches.length > 0) {
+          const newMatch = allMatches[0];
+          const newRestMatches = allMatches.toSpliced(0, 1);
+          return { newMatch: newMatch, restMatches: newRestMatches };
+        } else {
+          const newMatch = undefined;
+          const newRestMatches: Match[] = [];
+          return { newMatch: newMatch, restMatches: newRestMatches };
+        }
+      } else {
+        return swissDraw2([...players, ghostPlayer], matches, restMatches);
+      }
+    };
+
+    let { newMatch: newMatch, restMatches: newRestMatches } = makeNewMatch();
+
+    // if (newMatch) {
+    //   console.log("----------")
+    //   console.log("newMatch");
+    //   printMatch(newMatch, [...players, ghostPlayer], matches);
+    //   for (let i = 0; i < newRestMatches.length; ++i) {
+    //     console.log(`restMatch[${i}]`);
+    //     printMatch(newRestMatches[i], [...players, ghostPlayer], matches);
+    //   }
+    //   console.log("----------")
+    // }
+
+    // let newMatch = swissDraw(players, matches, ghostPlayer);
+
+    if (newMatch) {
+      console.assert(isUniqueMatch(newMatch, matches));
+    }
+
+    if (newMatch) {
+      // 対戦相手がいない場合は不戦勝とする.
+      if (!isEven(players)) {
+        newMatch = {
+          ...newMatch,
+          pairList: newMatch.pairList.map((pair) => {
+            if (pair.left === ghostPlayer.id) {
+              pair.winner = "right";
+            } else if (pair.right === ghostPlayer.id) {
+              pair.winner = "left";
+            }
+            return pair;
+          })
+        };
+      }
+      setMatches((matches) => [...matches, newMatch!]);
+    } else {
       alert("全ての対局が完了しました。");
-      return;
     }
 
-    // 対戦相手がいない場合は不戦勝とする.
-    if (!isEven(players)) {
-      newMatch = {
-        ...newMatch,
-        pairList: newMatch.pairList.map((pair) => {
-          if (pair.left === ghostPlayer.id) {
-            pair.winner = "right";
-          } else if (pair.right === ghostPlayer.id) {
-            pair.winner = "left";
-          }
-          return pair;
-        })
-      };
-    }
-
-    setMatches((matches) => [...matches, newMatch!]);
     setRequestScrollEnd((prev) => !prev)
+    setRestMatches(newRestMatches);
   };
 
   const handleWin = (
@@ -207,6 +246,7 @@ const HomeCore = () => {
 
   const STORAGE_KEY_PLAYERS = "swiss-draw-players";
   const STORAGE_KEY_MATCHES = "swiss-draw-matches";
+  const STORAGE_KEY_REST_MATCHES = "swiss-draw-rest-matches";
 
   useEffect(() => {
     localforage.getItem(STORAGE_KEY_GAME_NAMES).then((gameNames) => isGameNames(gameNames) && setGameNames(gameNames));
@@ -217,6 +257,7 @@ const HomeCore = () => {
     if (currentGameId) {
       localforage.getItem(`${STORAGE_KEY_PLAYERS}-${currentGameId}`).then((players) => isPlayers(players) && setPlayers(players));
       localforage.getItem(`${STORAGE_KEY_MATCHES}-${currentGameId}`).then((matches) => isMatches(matches) && setMatches(matches));
+      localforage.getItem(`${STORAGE_KEY_REST_MATCHES}-${currentGameId}`).then((matches) => isMatches(matches) && setRestMatches(matches));
       setRequestAutoFocus(false);
     } else {
       setPlayers([]);
@@ -244,6 +285,13 @@ const HomeCore = () => {
       localforage.setItem(`${STORAGE_KEY_MATCHES}-${currentGameId}`, matches);
     }
   }, [matches]);
+
+  useEffect(() => {
+    if (currentGameId) {
+      localforage.setItem(`${STORAGE_KEY_REST_MATCHES}-${currentGameId}`, restMatches);
+    }
+  }, [restMatches]);
+
 
   useEffect(() => {
     setURL(window.location.origin + window.location.pathname);
@@ -627,6 +675,7 @@ const HomeCore = () => {
                                 return prevGameNames.toSpliced(index, 1);
                               })
                               localforage.removeItem(`${STORAGE_KEY_MATCHES}-${deleteGameId}`);
+                              localforage.removeItem(`${STORAGE_KEY_REST_MATCHES}-${deleteGameId}`);
                               localforage.removeItem(`${STORAGE_KEY_PLAYERS}-${deleteGameId}`);
                             }}
                             color="error"

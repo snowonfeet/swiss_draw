@@ -1,5 +1,8 @@
+import { ParaglidingOutlined } from "@mui/icons-material";
 import { existPair, getOpponentId, getWinnerId, hasPlayerInPair } from "./pair";
-import { isEven, makeId } from "./util";
+import { roundRobin } from "./roundRobin";
+import { isEven, makeId, shuffle } from "./util";
+import { getPlayerName } from "./player";
 
 const isPair = (arg: unknown): arg is Pair => {
   const record = arg as Record<keyof Pair, unknown>;
@@ -138,7 +141,7 @@ const makeSortedPlayers = (players: Player[], matches: Match[]) => {
 };
 
 const toEven = (players: Player[], ghostPlayer: Player): Player[] => {
-  return isEven(players) ? players : [...players, ghostPlayer];
+  return isEven(players) ? players : [...players];
 };
 
 export const swissDraw = (
@@ -207,4 +210,145 @@ export const getPairInMatch = (playerId: PlayerId, match: Match) => {
     }
   }
   return undefined;
+};
+
+export const makeAllMatches = (players: Player[], ghostPlayer: Player) => {
+  const shuffledPlayers = shuffle(players);
+  const evenPlayers = isEven(shuffledPlayers)
+    ? shuffledPlayers
+    : [ghostPlayer, ...shuffledPlayers];
+
+  return roundRobin(evenPlayers.length).map((indexMatch) => {
+    const pairList = indexMatch.map((indexPair) => {
+      const pair: Pair = {
+        left: evenPlayers[indexPair[0]].id,
+        right: evenPlayers[indexPair[1]].id,
+        winner: "none",
+        id: makeId() as PairId,
+      };
+      return pair;
+    });
+    const match: Match = { pairList: pairList, id: makeId() as MatchId };
+    return match;
+  });
+};
+
+const getMinMax = (
+  left: number,
+  right: number
+): { min: number; max: number } => {
+  if (left < right) {
+    return { min: left, max: right };
+  } else {
+    return { max: right, min: left };
+  }
+};
+
+export const swissDraw2 = (
+  players: Player[],
+  pastMatches: Match[],
+  restMatches: Match[]
+): { newMatch: Match | undefined; restMatches: Match[] } => {
+  if (restMatches.length <= 0) {
+    return { newMatch: undefined, restMatches: [] };
+  }
+
+  if (restMatches.length === 1) {
+    return { newMatch: restMatches[0], restMatches: [] };
+  }
+
+  const playerWinCountMap: Map<PlayerId, number> = new Map();
+  for (const player of players) {
+    playerWinCountMap.set(player.id, getPlayerWinCount(player.id, pastMatches));
+  }
+
+  // マッチ内のペアリストを勝数で並べ替え。
+  const toSortedMatchWithWinCount = (match: Match): Match => {
+    return {
+      ...match,
+      pairList: match.pairList.toSorted((a, b) => {
+        const aLeft = playerWinCountMap.get(a.left);
+        const aRight = playerWinCountMap.get(a.right);
+        const bLeft = playerWinCountMap.get(b.left);
+        const bRight = playerWinCountMap.get(b.right);
+
+        if (
+          aLeft !== undefined &&
+          aRight !== undefined &&
+          bLeft !== undefined &&
+          bRight !== undefined
+        ) {
+          const { min: aMin, max: aMax } = getMinMax(aLeft, aRight);
+          const { min: bMin, max: bMax } = getMinMax(bLeft, bRight);
+          if (aMax !== bMax) {
+            return bMax - aMax;
+          }
+          return bMin - aMin;
+        }
+        return 0;
+      }),
+    };
+  };
+
+  // 残りの組み合わせの中から、勝数の多い人同士が対戦相手になるような組み合わせを選ぶ。
+  const sortedRestMatches = restMatches
+    .map((match) => {
+      return toSortedMatchWithWinCount(match);
+    })
+    .toSorted((a, b) => {
+      const len = a.pairList.length;
+      console.assert(len == b.pairList.length);
+      for (let i = 0; i < len; ++i) {
+        const aLeft = playerWinCountMap.get(a.pairList[i].left);
+        const aRight = playerWinCountMap.get(a.pairList[i].right);
+        const bLeft = playerWinCountMap.get(b.pairList[i].left);
+        const bRight = playerWinCountMap.get(b.pairList[i].right);
+        if (
+          aLeft !== undefined &&
+          aRight !== undefined &&
+          bLeft !== undefined &&
+          bRight !== undefined
+        ) {
+          const aDiff = Math.abs(aLeft - aRight);
+          const bDiff = Math.abs(bLeft - bRight);
+          if (aDiff !== bDiff) {
+            return aDiff - bDiff;
+          }
+        }
+      }
+      return 0;
+    });
+  return {
+    newMatch: sortedRestMatches[0],
+    restMatches: sortedRestMatches.toSpliced(0, 1),
+  };
+};
+
+export const printMatch = (
+  match: Match,
+  players: Player[],
+  pastMatches: Match[]
+) => {
+  for (const pair of match.pairList) {
+    const leftName = getPlayerName(pair.left, players);
+    const rightName = getPlayerName(pair.right, players);
+    const leftWinCount = getPlayerWinCount(pair.left, pastMatches);
+    const rightWinCount = getPlayerWinCount(pair.right, pastMatches);
+    console.log(
+      `${leftName}(${leftWinCount}) vs ${rightName}(${rightWinCount})`
+    );
+  }
+};
+
+export const isUniqueMatch = (newMatch: Match, pastMatches: Match[]) => {
+  for (const pastMatch of pastMatches) {
+    for (const pastPair of pastMatch.pairList) {
+      for (const newPair of newMatch.pairList) {
+        if (existPair(newPair.left, newPair.right, pastPair)) {
+          return false;
+        }
+      }
+    }
+  }
+  return true;
 };
