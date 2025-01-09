@@ -8,7 +8,7 @@ import { isEmpty, isEven, makeId } from "@/lib/util";
 import { getOpponentId, getResult, getSide, getWinnerId } from "@/lib/pair";
 import { indigo } from "@mui/material/colors";
 import { getHelperTextForNameValidation, getPlayerName, isPlayer, isPlayers, isValidPlayerName } from "@/lib/player";
-import { getDefeatedOpponentWinCount, getOpponentWinCount, getPairInMatch, getPlayerWinCount, getPlayerWinCountUntilMatchId, isMatches, isUniqueMatch, makeAllMatches, printMatch, swissDraw, swissDraw2 } from "@/lib/match";
+import { getDefeatedOpponentWinCount, getOpponentWinCount, getPairInMatch, getPlayerWinCount, getPlayerWinCountUntilMatchId, isMatches, isUniqueMatch, makeAllMatches, swissDraw2 } from "@/lib/match";
 import { RankTable } from "@/components/rankTable";
 import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
@@ -164,7 +164,7 @@ const HomeCore = () => {
       }
     };
 
-    let { newMatch: newMatch, restMatches: newRestMatches } = makeNewMatch();
+    const { newMatch: newMatch, restMatches: newRestMatches } = makeNewMatch();
 
     // if (newMatch) {
     //   console.log("----------")
@@ -186,7 +186,7 @@ const HomeCore = () => {
     if (newMatch) {
       // 対戦相手がいない場合は不戦勝とする.
       if (!isEven(players)) {
-        newMatch = {
+        const newMatchWithGhostWin = {
           ...newMatch,
           pairList: newMatch.pairList.map((pair) => {
             if (pair.left === ghostPlayer.id) {
@@ -197,8 +197,10 @@ const HomeCore = () => {
             return pair;
           })
         };
+        setMatches((matches) => [...matches, newMatchWithGhostWin!]);
+      } else {
+        setMatches((matches) => [...matches, newMatch!]);
       }
-      setMatches((matches) => [...matches, newMatch!]);
     } else {
       alert("全ての対局が完了しました。");
     }

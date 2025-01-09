@@ -1,4 +1,3 @@
-import { ParaglidingOutlined } from "@mui/icons-material";
 import { existPair, getOpponentId, getWinnerId, hasPlayerInPair } from "./pair";
 import { roundRobin } from "./roundRobin";
 import { isEven, makeId, shuffle } from "./util";
@@ -141,7 +140,7 @@ const makeSortedPlayers = (players: Player[], matches: Match[]) => {
 };
 
 const toEven = (players: Player[], ghostPlayer: Player): Player[] => {
-  return isEven(players) ? players : [...players];
+  return isEven(players) ? players : [...players, ghostPlayer];
 };
 
 export const swissDraw = (
