@@ -160,7 +160,7 @@ const HomeCore = () => {
           return { newMatch: newMatch, restMatches: newRestMatches };
         }
       } else {
-        return swissDraw2([...players, ghostPlayer], matches, restMatches);
+        return swissDraw2(players, ghostPlayer, matches, restMatches);
       }
     };
 
