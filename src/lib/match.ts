@@ -239,12 +239,13 @@ const getMinMax = (
   if (left < right) {
     return { min: left, max: right };
   } else {
-    return { max: right, min: left };
+    return { min: right, max: left };
   }
 };
 
 export const swissDraw2 = (
   players: Player[],
+  ghostPlayer: Player,
   pastMatches: Match[],
   restMatches: Match[]
 ): { newMatch: Match | undefined; restMatches: Match[] } => {
@@ -257,7 +258,7 @@ export const swissDraw2 = (
   }
 
   const playerWinCountMap: Map<PlayerId, number> = new Map();
-  for (const player of players) {
+  for (const player of [...players, ghostPlayer]) {
     playerWinCountMap.set(player.id, getPlayerWinCount(player.id, pastMatches));
   }
 
@@ -281,10 +282,21 @@ export const swissDraw2 = (
           const { min: bMin, max: bMax } = getMinMax(bLeft, bRight);
           if (aMax !== bMax) {
             return bMax - aMax;
+          } else if (aMin !== bMin) {
+            return bMin - aMin;
+          } else {
+            // 不在が含まれている方を後ろにする。
+            if (a.left == ghostPlayer.id || a.right == ghostPlayer.id) {
+              return 1;
+            } else if (b.left == ghostPlayer.id || b.right == ghostPlayer.id) {
+              return -1;
+            }
+            return 0;
           }
-          return bMin - aMin;
+        } else {
+          console.assert(false);
+          return 0;
         }
-        return 0;
       }),
     };
   };
@@ -312,6 +324,19 @@ export const swissDraw2 = (
           const bDiff = Math.abs(bLeft - bRight);
           if (aDiff !== bDiff) {
             return aDiff - bDiff;
+          } else {
+            // 勝数の差が同じ場合、不在でないほうを優先する。
+            if (
+              a.pairList[i].left == ghostPlayer.id ||
+              a.pairList[i].right == ghostPlayer.id
+            ) {
+              return 1;
+            } else if (
+              b.pairList[i].left == ghostPlayer.id ||
+              b.pairList[i].right == ghostPlayer.id
+            ) {
+              return -1;
+            }
           }
         }
       }
